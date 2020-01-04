@@ -1,17 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/nacl/sign"
 )
 
 type Block struct {
-	PrevBlock []byte
+	PrevBlock [sha256.Size]byte
 	Author    [32]byte
 	Message   []byte
-	Nonce     int
+	Nonce     uint32
 }
 
 type Tx struct {
@@ -28,6 +30,29 @@ func getTx(b Block) Tx {
 		return result
 	}
 	return result
+}
+
+func hash(block *Block) [sha256.Size]byte {
+	blockbytes, _ := json.Marshal(block)
+	return sha256.Sum256(blockbytes)
+}
+
+func mine(block *Block, target [sha256.Size]byte) bool {
+	var candidate uint32
+	for {
+		block.Nonce = candidate
+		hashBlock := hash(block)
+		var bHash []byte = hashBlock[:]
+		if (bytes.Compare(bHash, target[:])) < 1 {
+			fmt.Println(bHash)
+			return true
+		}
+		candidate++
+		if candidate == 0 {
+			break
+		}
+	}
+	return false
 }
 
 func main() {
@@ -48,9 +73,12 @@ func main() {
 	json.Unmarshal([]byte(message), &m)
 	//fmt.Println(m)
 
-	var prev []byte
+	var prev [32]byte
 	var block = Block{PrevBlock: prev, Author: *fromPub, Message: signedMessage, Nonce: 0}
 	//fmt.Println(block)
-	fmt.Println(getTx(block) == tx)
+	//fmt.Println(getTx(block) == tx)
 
+	//	fmt.Println(hash(&block))
+	var target = [sha256.Size]byte{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	mine(&block, target)
 }

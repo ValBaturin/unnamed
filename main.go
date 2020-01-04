@@ -20,6 +20,16 @@ type Tx struct {
 	Amount int
 }
 
+func getTx(b Block) Tx {
+	tx, success := sign.Open(nil, b.Message, &b.Author)
+	var result Tx
+	if success {
+		json.Unmarshal([]byte(tx), &result)
+		return result
+	}
+	return result
+}
+
 func main() {
 	fromPub, fromPr, _ := sign.GenerateKey(rand.Reader)
 	toPub, _, _ := sign.GenerateKey(rand.Reader)
@@ -40,6 +50,7 @@ func main() {
 
 	var prev []byte
 	var block = Block{PrevBlock: prev, Author: *fromPub, Message: signedMessage, Nonce: 0}
-	fmt.Println(block)
+	//fmt.Println(block)
+	fmt.Println(getTx(block) == tx)
 
 }

@@ -13,6 +13,23 @@ type Hash [sha256.Size]byte
 
 var zeroHash = Hash{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
+type Storage struct {
+	top  Hash
+	data map[Hash]Block
+}
+
+var storage Storage
+
+func (s *Storage) init() {
+	s.top = zeroHash
+	s.data = make(map[Hash]Block)
+}
+
+func (s *Storage) add(b *Block) {
+	s.data[b.hash()] = *b
+	s.top = b.hash()
+}
+
 type Block struct {
 	PrevBlock Hash
 	Author    [32]byte
@@ -36,7 +53,7 @@ func getTx(b Block) Tx {
 	return result
 }
 
-func hash(block *Block) Hash {
+func (block *Block) hash() Hash {
 	blockbytes, _ := json.Marshal(block)
 	return sha256.Sum256(blockbytes)
 }
@@ -45,7 +62,7 @@ func mine(block *Block, target Hash) bool {
 	var candidate uint32
 	for {
 		block.Nonce = candidate
-		hashBlock := hash(block)
+		hashBlock := block.hash()
 		var bHash []byte = hashBlock[:]
 		if (bytes.Compare(bHash, target[:])) < 1 {
 			fmt.Println(bHash)
@@ -85,5 +102,6 @@ func main() {
 	//	fmt.Println(hash(&block))
 	var target = Hash{0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	mine(&block, target)
-
+	storage.init()
+	storage.add(&block)
 }

@@ -9,8 +9,12 @@ import (
 	"golang.org/x/crypto/nacl/sign"
 )
 
+type Hash [sha256.Size]byte
+
+var zeroHash = Hash{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
 type Block struct {
-	PrevBlock [sha256.Size]byte
+	PrevBlock Hash
 	Author    [32]byte
 	Message   []byte
 	Nonce     uint32
@@ -32,12 +36,12 @@ func getTx(b Block) Tx {
 	return result
 }
 
-func hash(block *Block) [sha256.Size]byte {
+func hash(block *Block) Hash {
 	blockbytes, _ := json.Marshal(block)
 	return sha256.Sum256(blockbytes)
 }
 
-func mine(block *Block, target [sha256.Size]byte) bool {
+func mine(block *Block, target Hash) bool {
 	var candidate uint32
 	for {
 		block.Nonce = candidate
@@ -79,6 +83,7 @@ func main() {
 	//fmt.Println(getTx(block) == tx)
 
 	//	fmt.Println(hash(&block))
-	var target = [sha256.Size]byte{0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	var target = Hash{0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	mine(&block, target)
+
 }

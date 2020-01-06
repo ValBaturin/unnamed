@@ -18,6 +18,19 @@ type Storage struct {
 	data map[Hash]Block
 }
 
+func initLedger(s *Storage) map[[32]byte]int {
+	current := s.top
+	balance := make(map[[32]byte]int)
+	for current != zeroHash {
+		tx := getTx(s.data[current])
+		balance[tx.From] -= tx.Amount
+		balance[tx.To] += tx.Amount
+
+		current = s.data[current].PrevBlock
+	}
+	return balance
+}
+
 var storage Storage
 
 func (s *Storage) init() {
@@ -65,7 +78,7 @@ func mine(block *Block, target Hash) bool {
 		hashBlock := block.hash()
 		var bHash []byte = hashBlock[:]
 		if (bytes.Compare(bHash, target[:])) < 1 {
-			fmt.Println(bHash)
+			//fmt.Println(bHash)
 			return true
 		}
 		candidate++
@@ -104,4 +117,8 @@ func main() {
 	mine(&block, target)
 	storage.init()
 	storage.add(&block)
+
+	balance := initLedger(&storage)
+	fmt.Println(balance)
+
 }

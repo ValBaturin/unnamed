@@ -2,11 +2,12 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
+	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/nacl/sign"
+	"math/rand"
 )
 
 type Hash [sha256.Size]byte
@@ -30,8 +31,6 @@ func initLedger(s *Storage) map[[32]byte]int {
 	}
 	return balance
 }
-
-var storage Storage
 
 func (s *Storage) init() {
 	s.top = zeroHash
@@ -89,36 +88,60 @@ func mine(block *Block, target Hash) bool {
 	return false
 }
 
-func main() {
-	fromPub, fromPr, _ := sign.GenerateKey(rand.Reader)
-	toPub, _, _ := sign.GenerateKey(rand.Reader)
-	var tx = Tx{From: *fromPub, To: *toPub, Amount: 10}
-	//fmt.Println(tx)
+type Account struct {
+	Pubkey [32]byte
+	Prkey  [64]byte
+}
 
-	txJson, _ := json.Marshal(&tx)
+func generateAccounts(n int) []Account {
+	var accounts []Account
+	for i := 0; i < n; i++ {
+		pub, pr, _ := sign.GenerateKey(crand.Reader)
+		accounts = append(accounts, Account{Pubkey: *pub, Prkey: *pr})
+	}
+	return accounts
+}
 
-	//var m Tx
-	//json.Unmarshal([]byte(txJson), &m)
-	//fmt.Println(m)
-
-	signedMessage := sign.Sign(nil, txJson, fromPr)
-	message, _ := sign.Open(nil, signedMessage, fromPub)
-	var m Tx
-	json.Unmarshal([]byte(message), &m)
-	//fmt.Println(m)
-
-	var prev [32]byte
-	var block = Block{PrevBlock: prev, Author: *fromPub, Message: signedMessage, Nonce: 0}
-	//fmt.Println(block)
-	//fmt.Println(getTx(block) == tx)
-
-	//	fmt.Println(hash(&block))
-	var target = Hash{0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	mine(&block, target)
+func generateChain(target Hash, length int, acc []Account) *Storage {
+	var storage Storage
 	storage.init()
-	storage.add(&block)
+	prev := zeroHash
 
-	balance := initLedger(&storage)
+	for i := 0; i < length; i++ {
+		sender := acc[rand.Intn(len(acc))]
+		receiver := acc[rand.Intn(len(acc))]
+
+		// make receiver different from sender
+		for {
+			if receiver != sender {
+				break
+			}
+			receiver = acc[rand.Intn(len(acc))]
+		}
+		amount := rand.Intn(9) + 1 // a single digit coin from 1 to 9
+
+		fmt.Println("chosen sender", sender.Pubkey)
+		fmt.Println("chosen receiver", receiver.Pubkey)
+		fmt.Println("chosen amount", amount)
+
+		tx := Tx{From: sender.Pubkey, To: receiver.Pubkey, Amount: amount}
+		txJson, _ := json.Marshal(&tx)
+		signedMessage := sign.Sign(nil, txJson, &sender.Prkey)
+
+		block := Block{PrevBlock: prev, Author: sender.Pubkey, Message: signedMessage, Nonce: 0}
+		mine(&block, target)
+		storage.add(&block)
+	}
+
+	return &storage
+}
+
+func main() {
+	var target = Hash{0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	accounts := generateAccounts(2)
+	storage := generateChain(target, 2, accounts)
+	balance := initLedger(storage)
+	fmt.Println(accounts)
 	fmt.Println(balance)
-
 }

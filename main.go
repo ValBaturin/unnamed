@@ -42,6 +42,17 @@ func (s *Storage) add(b *Block) {
 	s.top = b.hash()
 }
 
+func (s *Storage) show() {
+	current := s.top
+	for current != zeroHash {
+		tx := (s.data[current]).getTx()
+		fmt.Printf("Tx:\n%.8x -> %.8x\nAmount: %d\n__________\n",
+			tx.From, tx.To, tx.Amount)
+
+		current = s.data[current].PrevBlock
+	}
+}
+
 type Block struct {
 	PrevBlock Hash
 	Tx        SignedTx
@@ -124,10 +135,6 @@ func generateChain(target Hash, length int, acc []Account) *Storage {
 		}
 		amount := rand.Intn(9) + 1 // a single digit coin from 1 to 9
 
-		fmt.Println("chosen sender", sender.Pubkey)
-		fmt.Println("chosen receiver", receiver.Pubkey)
-		fmt.Println("chosen amount", amount)
-
 		tx := Tx{From: sender.Pubkey, To: receiver.Pubkey, Amount: amount}
 		txJson, _ := json.Marshal(&tx)
 		signedMessage := sign.Sign(nil, txJson, &sender.Prkey)
@@ -135,6 +142,7 @@ func generateChain(target Hash, length int, acc []Account) *Storage {
 		block := Block{PrevBlock: prev, Tx: SignedTx{Author: sender.Pubkey, Message: signedMessage}, Nonce: 0}
 		mine(&block, target)
 		storage.add(&block)
+		prev = block.hash()
 	}
 
 	return &storage
@@ -143,9 +151,14 @@ func generateChain(target Hash, length int, acc []Account) *Storage {
 func main() {
 	var target = Hash{0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	accounts := generateAccounts(2)
-	storage := generateChain(target, 2, accounts)
+	accounts := generateAccounts(3)
+	storage := generateChain(target, 10, accounts)
 	balance := initLedger(storage)
-	fmt.Println(accounts)
-	fmt.Println(balance)
+
+	storage.show()
+
+	fmt.Println("Current state")
+	for k, v := range balance {
+		fmt.Printf("%.8x -> %d\n", k, v)
+	}
 }

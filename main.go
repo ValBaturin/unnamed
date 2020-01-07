@@ -23,7 +23,7 @@ func initLedger(s *Storage) map[[32]byte]int {
 	current := s.top
 	balance := make(map[[32]byte]int)
 	for current != zeroHash {
-		tx := getTx(s.data[current])
+		tx := (s.data[current]).getTx()
 		balance[tx.From] -= tx.Amount
 		balance[tx.To] += tx.Amount
 
@@ -44,9 +44,13 @@ func (s *Storage) add(b *Block) {
 
 type Block struct {
 	PrevBlock Hash
-	Author    [32]byte
-	Message   []byte
+	Tx        SignedTx
 	Nonce     uint32
+}
+
+type SignedTx struct {
+	Message []byte
+	Author  [32]byte
 }
 
 type Tx struct {
@@ -55,8 +59,8 @@ type Tx struct {
 	Amount int
 }
 
-func getTx(b Block) Tx {
-	tx, success := sign.Open(nil, b.Message, &b.Author)
+func (b Block) getTx() Tx {
+	tx, success := sign.Open(nil, b.Tx.Message, &b.Tx.Author)
 	var result Tx
 	if success {
 		json.Unmarshal([]byte(tx), &result)
@@ -128,7 +132,7 @@ func generateChain(target Hash, length int, acc []Account) *Storage {
 		txJson, _ := json.Marshal(&tx)
 		signedMessage := sign.Sign(nil, txJson, &sender.Prkey)
 
-		block := Block{PrevBlock: prev, Author: sender.Pubkey, Message: signedMessage, Nonce: 0}
+		block := Block{PrevBlock: prev, Tx: SignedTx{Author: sender.Pubkey, Message: signedMessage}, Nonce: 0}
 		mine(&block, target)
 		storage.add(&block)
 	}
